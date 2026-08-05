@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#ffffff">
+<title>管理者｜打刻システム</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Inter:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
+:root {
+  --bg:#ffffff;--surface2:#f2f3f5;--border:#dfe1e6;
+  --ink:#14161a;--muted:#33363d;--muted2:#585c66;
+  --accent:#2563eb;--accent-soft:#eaf1ff;
+  --green:#16a34a;--red:#e11d2e;--orange:#e08600;
+}
+html{color-scheme:light !important;background:#ffffff !important;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Inter','Noto Sans JP',sans-serif;background:#ffffff !important;color:#14161a !important;min-height:100vh;padding:0 24px 60px;}
+.header{padding:56px 0 8px;}
+.header .eyebrow{font-size:0.62rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+.header h1{font-size:1.9rem;font-weight:900;letter-spacing:-0.03em;line-height:1.05;font-family:'Noto Sans JP',sans-serif;}
+.sync-status{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:0.66rem;color:var(--muted2);font-weight:500;}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:var(--green);}
+.sync-dot.loading{background:var(--orange);animation:pulse 1s infinite;}
+.sync-dot.error{background:var(--red);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+.section{margin:28px 0;}
+.section-label{font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.2em;color:var(--muted);margin-bottom:14px;}
+.hairline{border:none;border-top:1px solid var(--border);margin:28px 0;}
+select{width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:15px 16px;color:var(--ink);font-family:'Noto Sans JP',sans-serif;font-size:1rem;outline:none;-webkit-appearance:none;appearance:none;font-weight:600;}
+.sel-wrap{position:relative;}
+.sel-wrap::after{content:'↓';position:absolute;right:16px;top:50%;transform:translateY(-50%);color:var(--ink);pointer-events:none;font-weight:700;}
+.pin-input{width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:15px;color:var(--ink);font-family:'DM Mono',monospace;font-size:1.3rem;text-align:center;letter-spacing:.5em;outline:none;}
+input[type="number"],input[type="time"],input[type="date"]{width:100%;background:var(--surface2);border:1px solid transparent;border-radius:8px;padding:13px 30px 13px 14px;color:var(--ink);font-family:'DM Mono',monospace;font-size:0.95rem;outline:none;-moz-appearance:textfield;-webkit-appearance:none;}
+input[type="time"],input[type="date"]{padding-right:14px;}
+input[type="number"]::-webkit-inner-spin-button{display:none;}
+input:focus{border-color:var(--accent);}
+select:focus,.pin-input:focus{border-color:var(--accent);}
+.field label{display:block;font-size:0.66rem;color:var(--muted);margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;}
+.input-wrap{position:relative;}
+.input-wrap .unit{position:absolute;right:13px;top:50%;transform:translateY(-50%);color:var(--muted2);font-size:0.72rem;pointer-events:none;font-weight:600;}
+.primary-btn{width:100%;padding:17px;background:var(--accent);border:none;border-radius:99px;color:#fff;font-size:0.92rem;font-weight:700;font-family:'Noto Sans JP',sans-serif;cursor:pointer;transition:transform .1s,opacity .15s;letter-spacing:.02em;}
+.primary-btn:active{transform:scale(.98);opacity:.85;}
+.primary-btn:disabled{opacity:.35;}
+.outline-btn{width:100%;padding:16px;background:var(--bg);border:1px solid var(--border);border-radius:99px;color:var(--ink);font-size:0.9rem;font-weight:700;font-family:'Noto Sans JP',sans-serif;cursor:pointer;}
+.dash-btn{width:100%;padding:14px;background:transparent;border:1px dashed var(--border);border-radius:99px;color:var(--muted);font-size:0.82rem;font-family:'Noto Sans JP',sans-serif;cursor:pointer;font-weight:700;}
+.text-btn{background:none;border:none;color:var(--muted);font-size:0.75rem;cursor:pointer;font-family:'Noto Sans JP',sans-serif;font-weight:600;text-decoration:underline;display:block;margin:20px auto 0;}
+.hint-text{font-size:0.74rem;color:var(--muted);text-align:center;margin-top:12px;line-height:1.7;}
+.err-text{font-size:0.76rem;color:var(--red);text-align:center;min-height:18px;margin-top:8px;font-weight:600;}
+.login-row{display:flex;flex-direction:column;gap:12px;}
+.no-data{text-align:center;color:var(--muted2);font-size:0.82rem;padding:48px 0;font-weight:500;}
+.loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,0.7);z-index:200;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.loading-overlay.show{display:flex;}
+.loading-box{text-align:center;font-size:0.85rem;color:var(--muted);font-weight:600;}
+.spinner{width:28px;height:28px;border:2.5px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 14px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.tabbar{position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,0.96);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;z-index:50;padding-bottom:env(safe-area-inset-bottom);}
+.tabbar button{flex:1;padding:12px 0 10px;background:none;border:none;color:var(--muted2);font-size:0.6rem;font-family:'Noto Sans JP',sans-serif;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;font-weight:600;letter-spacing:.02em;}
+.tabbar button .ico{font-size:1.2rem;line-height:1;filter:grayscale(1);opacity:.45;}
+.tabbar button.active{color:var(--ink);}
+.tabbar button.active .ico{filter:none;opacity:1;}
+.tab-content{display:none;animation:fadeIn .22s ease;padding-bottom:80px;}
+.tab-content.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+.clock-time{font-family:'DM Mono',monospace;font-size:4rem;font-weight:500;text-align:center;line-height:1;margin:16px 0 6px;letter-spacing:-0.02em;}
+.clock-date{text-align:center;color:var(--muted);font-size:0.78rem;margin-bottom:28px;font-weight:500;}
+.working-summary{text-align:center;font-size:0.74rem;color:var(--muted);font-weight:600;margin-bottom:16px;min-height:18px;}
+.working-summary .count{color:var(--green);font-weight:800;}
+.staff-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;}
+.staff-card{border:1.5px solid var(--border);border-radius:16px;padding:16px 12px;text-align:center;cursor:pointer;transition:transform .1s,border-color .15s,background .15s;background:var(--bg);}
+.staff-card:active{transform:scale(.96);}
+.staff-card.working{border-color:var(--accent);background:var(--accent);}
+.staff-card .sc-name{font-weight:800;font-size:0.92rem;font-family:'Noto Sans JP',sans-serif;}
+.staff-card.working .sc-name{color:#fff;}
+.staff-card .sc-status{font-size:0.62rem;color:var(--muted2);font-weight:700;margin-top:6px;text-transform:uppercase;letter-spacing:.08em;}
+.staff-card.working .sc-status{color:rgba(255,255,255,0.6);}
+.staff-card .sc-dot{width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;margin-right:4px;vertical-align:middle;}
+.staff-card-empty{grid-column:1/-1;text-align:center;color:var(--muted2);font-size:0.82rem;padding:30px 0;}
+.shift-summary{border-top:1px solid var(--border);margin-top:20px;padding-top:16px;}
+.ss-row{display:flex;justify-content:space-between;padding:6px 0;font-size:0.85rem;}
+.ss-row .l{color:var(--muted);}
+.ss-row .v{font-family:'DM Mono',monospace;font-weight:600;}
+.fix-item{border-bottom:1px solid var(--border);padding:16px 0;}
+.fix-item:last-child{border-bottom:none;}
+.fix-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.fix-name{font-weight:800;font-size:0.95rem;}
+.fix-open{font-size:0.6rem;color:var(--green);font-weight:800;letter-spacing:.1em;text-transform:uppercase;}
+.fix-times{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.fix-btns{display:flex;gap:8px;}
+.fix-save{flex:1;padding:11px;background:var(--accent);border:none;border-radius:99px;color:#fff;font-size:0.78rem;font-weight:700;font-family:'Noto Sans JP',sans-serif;cursor:pointer;}
+.fix-del{padding:11px 18px;background:var(--bg);border:1.5px solid var(--red);border-radius:99px;color:var(--red);font-size:0.78rem;font-family:'Noto Sans JP',sans-serif;cursor:pointer;font-weight:800;}
+.history-item{border-bottom:1px solid var(--border);padding:20px 0;}
+.history-item:last-child{border-bottom:none;}
+.history-date{font-size:0.66rem;color:var(--muted);margin-bottom:8px;font-family:'DM Mono',monospace;font-weight:600;letter-spacing:.05em;}
+.history-rate-row{display:flex;align-items:baseline;gap:8px;margin-bottom:12px;}
+.history-rate{font-family:'DM Mono',monospace;font-size:2.2rem;font-weight:500;line-height:1;}
+.history-rate-label{font-size:0.68rem;color:var(--muted);font-weight:700;}
+.history-summary{display:flex;gap:28px;margin-bottom:14px;}
+.hs-label{font-size:0.6rem;color:var(--muted);margin-bottom:4px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;}
+.hs-val{font-family:'DM Mono',monospace;font-size:0.95rem;font-weight:600;}
+.history-staff-row{display:flex;justify-content:space-between;font-size:0.76rem;padding:7px 0;border-bottom:1px solid var(--surface2);}
+.history-staff-row:last-child{border-bottom:none;}
+.hsn{font-weight:700;}.hst{color:var(--muted);font-family:'DM Mono',monospace;}.hsp{font-family:'DM Mono',monospace;font-weight:600;}
+.delete-history-btn{padding:12px 18px;background:var(--bg);border:1.5px solid var(--red);border-radius:99px;color:var(--red);font-size:0.78rem;font-family:'Noto Sans JP',sans-serif;cursor:pointer;font-weight:800;margin-top:14px;}
+.staff-register-row{display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--surface2);}
+.staff-register-row input[type=text]{flex:1;background:transparent;border:none;border-bottom:1px solid transparent;padding:8px 2px;color:var(--ink);font-family:'Noto Sans JP',sans-serif;font-size:0.92rem;outline:none;font-weight:600;}
+.staff-register-row input[type=text]:focus{border-bottom-color:var(--ink);}
+.wage-field{position:relative;width:110px;}
+.wage-field input{width:100%;background:var(--surface2);border:1px solid transparent;border-radius:8px;padding:9px 26px 9px 10px;color:var(--ink);font-family:'DM Mono',monospace;font-size:0.88rem;outline:none;}
+.wage-field input:focus{border-color:var(--accent);}
+select:focus,.pin-input:focus{border-color:var(--accent);}
+.wage-field .wu{position:absolute;right:8px;top:50%;transform:translateY(-50%);color:var(--muted2);font-size:0.68rem;}
+.del-btn{background:none;border:none;cursor:pointer;color:var(--muted2);font-size:0.9rem;padding:6px;}
+
+/* スタッフカード */
+.staff-card2{display:flex;justify-content:space-between;align-items:center;padding:16px 4px;border-bottom:1px solid var(--border);cursor:pointer;}
+.staff-card2:active{background:var(--surface2);}
+.staff-card2 .scn{font-weight:800;font-size:0.95rem;}
+.staff-card2 .scw{font-family:'DM Mono',monospace;font-size:0.88rem;color:var(--muted);margin-top:3px;}
+.staff-card2 .scr{color:var(--muted2);font-size:0.9rem;}
+
+/* モーダル */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(17,17,17,0.4);z-index:100;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px);}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--bg);border-radius:20px 20px 0 0;padding:26px 24px;width:100%;max-height:88vh;overflow-y:auto;}
+.modal-title{font-size:1.1rem;font-weight:900;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;font-family:'Noto Sans JP',sans-serif;letter-spacing:-0.01em;}
+.modal-close{background:var(--surface2);border:none;color:var(--ink);font-size:0.85rem;cursor:pointer;width:32px;height:32px;border-radius:50%;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="eyebrow">Admin Only</div>
+  <h1>打刻システム</h1>
+  <div class="sync-status"><div class="sync-dot" id="syncDot"></div><span id="syncText">接続中...</span></div>
+</div>
+
+<div id="gateBox">
+  <div class="section">
+    <div class="section-label">Admin Login</div>
+    <p style="font-size:0.8rem;color:var(--muted);margin-bottom:18px;line-height:1.8;">このページは管理者専用です。<br>打刻・勤怠修正・スタッフ編集・売上履歴の閲覧ができます。</p>
+    <input type="password" class="pin-input" id="passInput" placeholder="••••" onkeydown="if(event.key==='Enter')gateLogin()">
+    <div class="err-text" id="gateErr"></div>
+    <button class="primary-btn" style="margin-top:8px;" onclick="gateLogin()">ログイン</button>
+  </div>
+</div>
+
+<div id="app" style="display:none;">
+
+<div class="tab-content active" id="tab-punch">
+  <div class="clock-time" id="liveClock">--:--</div>
+  <div class="clock-date" id="liveDate"></div>
+  <div class="working-summary" id="workingSummary"></div>
+  <div class="staff-grid" id="staffGrid"></div>
+  <div id="shiftSummary"></div>
+
+  <hr class="hairline">
+
+  <div class="section">
+    <div class="section-label">勤怠修正</div>
+    <input type="date" id="fixDate" style="margin-bottom:12px;">
+    <button class="outline-btn" onclick="loadFixList()">この日の打刻を表示</button>
+    <div id="fixList" style="margin-top:8px;"></div>
+    <button class="dash-btn" style="margin-top:14px;" onclick="addManualPunch()">＋ 打刻を手動追加</button>
+  </div>
+</div>
+
+<div class="tab-content" id="tab-staff">
+  <div class="section">
+    <div class="section-label">スタッフ管理<span style="font-size:0.6rem;color:var(--muted2);font-weight:600;margin-left:8px;text-transform:none;letter-spacing:0;">タップで即反映</span></div>
+    <div id="staffCardList"></div>
+    <button class="dash-btn" style="margin-top:12px;" onclick="openStaffEdit(-1)">＋ 新しいスタッフを追加</button>
+  </div>
+</div>
+
+<div class="tab-content" id="tab-history">
+  <div class="section">
+    <div class="section-label">売上・人件費履歴</div>
+    <button class="outline-btn" style="margin-bottom:20px;" onclick="exportCSV()">CSVで書き出す</button>
+    <div id="historyList"><div class="no-data">読み込み中...</div></div>
+  </div>
+</div>
+
+<div class="tabbar">
+  <button class="active" id="tb-punch" onclick="switchTab('punch')"><span class="ico">⏱</span>打刻</button>
+  <button id="tb-staff" onclick="switchTab('staff')"><span class="ico">👥</span>スタッフ</button>
+  <button id="tb-history" onclick="switchTab('history')"><span class="ico">📋</span>履歴</button>
+</div>
+
+</div>
+
+<div class="modal-overlay" id="staffEditModal" onclick="bgCloseStaff(event)">
+  <div class="modal">
+    <div class="modal-title"><span id="staffEditTitle">スタッフを追加</span><button class="modal-close" onclick="closeStaffEdit()">✕</button></div>
+    <div class="field" style="margin-bottom:14px;">
+      <label>名前</label>
+      <input type="text" id="staffEditName" placeholder="名前を入力" style="background:var(--surface2);border:1px solid transparent;border-radius:8px;padding:13px 14px;width:100%;font-family:'Noto Sans JP',sans-serif;font-size:0.95rem;">
+    </div>
+    <div class="field" style="margin-bottom:8px;">
+      <label>時給</label>
+      <div class="input-wrap"><input type="number" id="staffEditWage" placeholder="1000"><span class="unit">円</span></div>
+    </div>
+    <div class="err-text" id="staffEditErr"></div>
+    <button class="primary-btn" style="margin-top:10px;" onclick="saveStaffEdit()" id="staffEditSaveBtn">追加する</button>
+    <button class="text-btn" id="staffEditDeleteBtn" style="color:var(--red);text-decoration:none;" onclick="deleteStaffEdit()">このスタッフを削除する</button>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-box"><div class="spinner"></div><div id="loadingText">処理中...</div></div>
+</div>
+
+<script>
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbw2HcmMd4W5k2S28-fl1Du8nW15NhSjnG_9LtF4ai2LqBvlIX_KVCU69_snsXv3crSnng/exec';
+const ADMIN_PASS = '0321';
+
+let staffMaster = [];
+let openShifts = [];
+let lastHistoryData = [];
+let loggedIn = localStorage.getItem('adminGate') === '1';
+
+function tickClock() {
+  const d = new Date();
+  document.getElementById('liveClock').textContent = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  const days = ['日','月','火','水','木','金','土'];
+  document.getElementById('liveDate').textContent = d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日（' + days[d.getDay()] + '）';
+}
+tickClock();
+setInterval(tickClock, 1000);
+
+(function(){
+  const d = new Date();
+  document.getElementById('fixDate').value = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+})();
+
+function setSyncStatus(state, text) {
+  document.getElementById('syncDot').className = 'sync-dot' + (state==='loading'?' loading':state==='error'?' error':'');
+  document.getElementById('syncText').textContent = text;
+}
+function showLoading(t){document.getElementById('loadingText').textContent=t||'処理中...';document.getElementById('loadingOverlay').classList.add('show');}
+function hideLoading(){document.getElementById('loadingOverlay').classList.remove('show');}
+async function gasGet(q){const r=await fetch(GAS_URL+'?'+q);return await r.json();}
+async function gasPost(b){const r=await fetch(GAS_URL,{method:'POST',body:JSON.stringify(b)});return await r.json();}
+
+function gateLogin() {
+  const pass = document.getElementById('passInput').value;
+  const err = document.getElementById('gateErr');
+  if (pass !== ADMIN_PASS) { err.textContent = 'パスワードが違います'; return; }
+  localStorage.setItem('adminGate', '1');
+  loggedIn = true;
+  document.getElementById('gateBox').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  boot();
+}
+
+async function boot() {
+  setSyncStatus('loading','接続中...');
+  try {
+    const data = await gasGet('action=getStaff');
+    staffMaster = data.staff || [];
+    setSyncStatus('ok','同期済み');
+  } catch(e) {
+    setSyncStatus('error','接続エラー');
+  }
+  refreshOpenShifts();
+}
+
+if (loggedIn) {
+  document.getElementById('gateBox').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  boot();
+} else {
+  setSyncStatus('ok','待機中');
+}
+
+function switchTab(name) {
+  ['punch','staff','history'].forEach(t=>{
+    document.getElementById('tab-'+t).classList.toggle('active', t===name);
+    document.getElementById('tb-'+t).classList.toggle('active', t===name);
+  });
+  if (name==='history') loadHistory();
+  if (name==='staff') renderRegisterList();
+  if (name==='punch') refreshOpenShifts();
+}
+
+// ===== 打刻 =====
+async function refreshOpenShifts() {
+  try {
+    const r = await gasGet('action=openShifts');
+    openShifts = r.records || [];
+    renderStaffGrid();
+  } catch(e) {}
+}
+
+function renderStaffGrid() {
+  const el = document.getElementById('staffGrid');
+  const summary = document.getElementById('workingSummary');
+  if (staffMaster.length === 0) {
+    el.innerHTML = '<div class="staff-card-empty">スタッフが登録されていません</div>';
+    summary.textContent = '';
+    return;
+  }
+  summary.innerHTML = '現在勤務中: <span class="count">' + openShifts.length + '名</span>';
+  el.innerHTML = '';
+  staffMaster.forEach(s => {
+    const open = openShifts.find(o=>o.name===s.name);
+    const card = document.createElement('div');
+    card.className = 'staff-card' + (open ? ' working' : '');
+    card.onclick = () => doPunch(s.name);
+    card.innerHTML = open
+      ? '<div class="sc-name">'+s.name+'</div><div class="sc-status"><span class="sc-dot"></span>'+open.in+'〜</div>'
+      : '<div class="sc-name">'+s.name+'</div><div class="sc-status">勤務外</div>';
+    el.appendChild(card);
+  });
+}
+
+async function doPunch(name) {
+  if (!name) return;
+  const open = openShifts.find(o=>o.name===name);
+  const now = new Date();
+  const nowStr = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  const confirmMsg = open
+    ? name + ' さんを ' + nowStr + ' に退勤打刻します。よろしいですか？'
+    : name + ' さんを ' + nowStr + ' に出勤打刻します。よろしいですか？';
+  if (!confirm(confirmMsg)) return;
+  showLoading(open ? '退勤打刻中...' : '出勤打刻中...');
+  try {
+    if (!open) {
+      const r = await gasPost({action:'clockIn', adminPass:ADMIN_PASS, name});
+      hideLoading();
+      if (!r.ok) {
+        alert(r.error==='open' ? 'すでに出勤中です' : '打刻に失敗しました');
+      } else {
+        document.getElementById('shiftSummary').innerHTML =
+          '<div class="shift-summary"><div class="ss-row"><span class="l">'+name+'</span><span class="v">'+r.time+' 出勤 ✓</span></div></div>';
+      }
+    } else {
+      const r = await gasPost({action:'clockOut', adminPass:ADMIN_PASS, name});
+      hideLoading();
+      if (!r.ok) {
+        alert('打刻に失敗しました');
+      } else {
+        const mins = diffMin(r.in, r.time);
+        document.getElementById('shiftSummary').innerHTML =
+          '<div class="shift-summary">'+
+          '<div class="ss-row"><span class="l">'+name+'</span><span class="v">'+r.time+' 退勤 ✓</span></div>'+
+          '<div class="ss-row"><span class="l">勤務時間</span><span class="v">'+r.in+' 〜 '+r.time+'（'+(mins/60).toFixed(2)+'h）</span></div>'+
+          '</div>';
+      }
+    }
+    await refreshOpenShifts();
+  } catch(e) {
+    hideLoading();
+    alert('通信エラーが発生しました');
+  }
+}
+
+function toMin(t){if(!t)return null;const p=t.split(':');return parseInt(p[0])*60+parseInt(p[1]);}
+function diffMin(a, b) {
+  const s = toMin(a), e0 = toMin(b);
+  let e = e0 <= s ? e0 + 1440 : e0;
+  return e - s;
+}
+
+// ===== 勤怠修正 =====
+async function loadFixList() {
+  const date = document.getElementById('fixDate').value;
+  if (!date) return;
+  const el = document.getElementById('fixList');
+  el.innerHTML = '<div class="no-data">読み込み中...</div>';
+  try {
+    const r = await gasGet('action=getTimeclock&date='+date);
+    const recs = r.records || [];
+    if (recs.length === 0) { el.innerHTML = '<div class="no-data">この日の打刻はありません</div>'; return; }
+    el.innerHTML = '';
+    recs.forEach(rec => {
+      const div = document.createElement('div');
+      div.className = 'fix-item';
+      div.innerHTML =
+        '<div class="fix-head"><span class="fix-name">'+rec.name+'</span>'+(rec.out?'':'<span class="fix-open">勤務中</span>')+'</div>'+
+        '<div class="fix-times">'+
+          '<div class="field"><label>出勤</label><input type="time" id="fix-in-'+rec.id+'" value="'+rec.in+'"></div>'+
+          '<div class="field"><label>退勤</label><input type="time" id="fix-out-'+rec.id+'" value="'+(rec.out||'')+'"></div>'+
+        '</div>'+
+        '<div class="fix-btns">'+
+          '<button class="fix-save" onclick="saveFix(\''+rec.id+'\')">保存</button>'+
+          '<button class="fix-del" onclick="deleteFix(\''+rec.id+'\')">削除</button>'+
+        '</div>';
+      el.appendChild(div);
+    });
+  } catch(e) {
+    el.innerHTML = '<div class="no-data">読み込みに失敗しました</div>';
+  }
+}
+
+async function saveFix(id) {
+  const inV = document.getElementById('fix-in-'+id).value;
+  const outV = document.getElementById('fix-out-'+id).value;
+  if (!inV) { alert('出勤時間を入力してください'); return; }
+  showLoading('修正を保存中...');
+  try {
+    const r = await gasPost({action:'updateTimeclock', adminPass:ADMIN_PASS, id, in:inV, out:outV});
+    hideLoading();
+    if (r.ok) { loadFixList(); refreshOpenShifts(); }
+    else alert('修正に失敗しました');
+  } catch(e) { hideLoading(); alert('通信エラー'); }
+}
+
+async function deleteFix(id) {
+  if (!confirm('この打刻記録を削除しますか？')) return;
+  showLoading('削除中...');
+  try {
+    const r = await gasPost({action:'deleteTimeclock', adminPass:ADMIN_PASS, id});
+    hideLoading();
+    if (r.ok) { loadFixList(); refreshOpenShifts(); }
+    else alert('削除に失敗しました');
+  } catch(e) { hideLoading(); alert('通信エラー'); }
+}
+
+async function addManualPunch() {
+  const name = prompt('スタッフ名を入力してください（登録名と完全一致）');
+  if (!name) return;
+  if (!staffMaster.find(s=>s.name===name)) { alert('その名前のスタッフが見つかりません'); return; }
+  const date = document.getElementById('fixDate').value;
+  const inV = prompt('出勤時間を入力（例 18:00）');
+  if (!inV || !/^\d{1,2}:\d{2}$/.test(inV)) { alert('形式が正しくありません'); return; }
+  const outV = prompt('退勤時間を入力（例 23:30）※勤務中なら空欄でOK', '');
+  if (outV && !/^\d{1,2}:\d{2}$/.test(outV)) { alert('形式が正しくありません'); return; }
+  showLoading('追加中...');
+  try {
+    const r = await gasPost({action:'addTimeclock', adminPass:ADMIN_PASS, name, date, in:inV, out:outV||''});
+    hideLoading();
+    if (r.ok) { loadFixList(); refreshOpenShifts(); }
+    else alert('追加に失敗しました');
+  } catch(e) { hideLoading(); alert('通信エラー'); }
+}
+
+// ===== スタッフ管理 =====
+let editingIndex = -1;
+
+function renderRegisterList(){
+  const el=document.getElementById('staffCardList');
+  el.innerHTML='';
+  if (staffMaster.length === 0) {
+    el.innerHTML = '<div class="no-data">スタッフが登録されていません</div>';
+    return;
+  }
+  staffMaster.forEach((s,i)=>{
+    const row=document.createElement('div');
+    row.className='staff-card2';
+    row.onclick = () => openStaffEdit(i);
+    row.innerHTML='<div><div class="scn">'+s.name+'</div><div class="scw">¥'+s.wage.toLocaleString('ja-JP')+' /時</div></div><div class="scr">›</div>';
+    el.appendChild(row);
+  });
+}
+
+function openStaffEdit(i) {
+  editingIndex = i;
+  const err = document.getElementById('staffEditErr');
+  err.textContent = '';
+  if (i === -1) {
+    document.getElementById('staffEditTitle').textContent = 'スタッフを追加';
+    document.getElementById('staffEditName').value = '';
+    document.getElementById('staffEditWage').value = '';
+    document.getElementById('staffEditSaveBtn').textContent = '追加する';
+    document.getElementById('staffEditDeleteBtn').style.display = 'none';
+  } else {
+    const s = staffMaster[i];
+    document.getElementById('staffEditTitle').textContent = s.name;
+    document.getElementById('staffEditName').value = s.name;
+    document.getElementById('staffEditWage').value = s.wage;
+    document.getElementById('staffEditSaveBtn').textContent = '保存する';
+    document.getElementById('staffEditDeleteBtn').style.display = 'block';
+  }
+  document.getElementById('staffEditModal').classList.add('open');
+}
+
+function closeStaffEdit() {
+  document.getElementById('staffEditModal').classList.remove('open');
+}
+function bgCloseStaff(e) {
+  if (e.target === document.getElementById('staffEditModal')) closeStaffEdit();
+}
+
+async function saveStaffEdit() {
+  const name = document.getElementById('staffEditName').value.trim();
+  const wage = +document.getElementById('staffEditWage').value;
+  const err = document.getElementById('staffEditErr');
+  if (!name) { err.textContent = '名前を入力してください'; return; }
+  if (!wage || wage <= 0) { err.textContent = '時給を正しく入力してください'; return; }
+  const dup = staffMaster.findIndex((s,idx) => s.name === name && idx !== editingIndex);
+  if (dup !== -1) { err.textContent = 'その名前はすでに登録されています'; return; }
+
+  if (editingIndex === -1) {
+    staffMaster.push({name, wage});
+  } else {
+    staffMaster[editingIndex] = {name, wage};
+  }
+  await persistStaff();
+  closeStaffEdit();
+}
+
+async function deleteStaffEdit() {
+  if (editingIndex === -1) return;
+  const name = staffMaster[editingIndex].name;
+  if (!confirm(name + ' さんを削除しますか？\n打刻履歴やPINは残りますが、選択肢から消えます')) return;
+  staffMaster.splice(editingIndex, 1);
+  await persistStaff();
+  closeStaffEdit();
+}
+
+async function persistStaff() {
+  showLoading('保存中...');
+  try {
+    const r = await gasPost({action:'saveStaff', adminPass:ADMIN_PASS, staff:staffMaster});
+    hideLoading();
+    if (!r.ok) { alert('保存に失敗しました'); return; }
+    setSyncStatus('ok','同期済み');
+    renderRegisterList();
+    refreshOpenShifts();
+  } catch(e) {
+    hideLoading();
+    alert('通信エラーが発生しました');
+  }
+}
+
+// ===== 履歴 =====
+function fmt(n){return Math.round(n).toLocaleString('ja-JP');}
+async function loadHistory(){
+  const el=document.getElementById('historyList');
+  el.innerHTML='<div class="no-data">読み込み中...</div>';
+  try {
+    const data=await gasGet('action=getHistory');
+    renderHistory(data.history||[]);
+  } catch(e) {
+    el.innerHTML='<div class="no-data">読み込みに失敗しました</div>';
+  }
+}
+function renderHistory(history){
+  lastHistoryData = history;
+  const el=document.getElementById('historyList');
+  if(history.length===0){el.innerHTML='<div class="no-data">まだ履歴がありません</div>';return;}
+  el.innerHTML='';
+  history.forEach(r=>{
+    const item=document.createElement('div');item.className='history-item';
+    const rateColor=r.rate<=25?'var(--green)':r.rate<=35?'var(--orange)':'var(--red)';
+    item.innerHTML=
+      '<div class="history-date">'+r.date+'</div>'+
+      '<div class="history-rate-row"><div class="history-rate" style="color:'+rateColor+'">'+Number(r.rate).toFixed(1)+'</div><div class="history-rate-label">% 人件費率</div></div>'+
+      '<div class="history-summary">'+
+        '<div><div class="hs-label">有効売上</div><div class="hs-val">¥'+fmt(r.effectiveSales)+'</div></div>'+
+        '<div><div class="hs-label">総人件費</div><div class="hs-val">¥'+fmt(r.totalLabor)+'</div></div>'+
+      '</div>'+
+      '<div>'+r.staff.map(s=>'<div class="history-staff-row"><span class="hsn">'+s.name+'</span><span class="hst">'+s.start+'–'+s.end+'</span><span class="hsp">¥'+fmt(s.pay)+'</span></div>').join('')+'</div>'+
+      '<button class="delete-history-btn" onclick="deleteRecord('+r.id+')">削除</button>';
+    el.appendChild(item);
+  });
+}
+async function deleteRecord(id){
+  if(!confirm('この履歴を削除しますか？'))return;
+  showLoading('削除中...');
+  try {
+    await gasPost({action:'deleteHistory', id:String(id)});
+    hideLoading();
+    loadHistory();
+  } catch(e){ hideLoading(); alert('削除に失敗しました'); }
+}
+
+function exportCSV() {
+  if (lastHistoryData.length === 0) { alert('書き出せる履歴がありません'); return; }
+  let csv = '\uFEFF日付,現金,クレジット,有効売上,総人件費,人件費率(%),スタッフ内訳\n';
+  lastHistoryData.forEach(r => {
+    const staffStr = r.staff.map(s=>s.name+' '+s.start+'-'+s.end+' ¥'+Math.round(s.pay)).join(' / ');
+    csv += [r.date, r.cash, r.credit, Math.round(r.effectiveSales), Math.round(r.totalLabor), Number(r.rate).toFixed(1), '"'+staffStr+'"'].join(',') + '\n';
+  });
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '人件費履歴_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
