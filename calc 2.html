@@ -89,6 +89,9 @@ select:focus,.pin-input:focus{border-color:var(--accent);}
 .gauge-fill{height:100%;transition:width .5s ease,background .5s ease;}
 .live-tag{display:inline-flex;align-items:center;gap:5px;font-size:0.62rem;color:var(--green);font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-left:8px;}
 .live-dot{width:5px;height:5px;border-radius:50%;background:var(--green);animation:pulse 1.2s infinite;}
+.report-box{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;font-family:'DM Mono',monospace;font-size:0.85rem;line-height:1.9;white-space:pre-wrap;color:var(--ink);}
+.copy-toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--ink);color:#fff;padding:10px 20px;border-radius:99px;font-size:0.82rem;font-weight:700;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:150;}
+.copy-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 </style>
 </head>
 <body>
@@ -131,6 +134,17 @@ select:focus,.pin-input:focus{border-color:var(--accent);}
   <div class="result-row"><span class="rl">有効売上</span><span class="rv" id="totalSalesVal">¥0</span></div>
 </div>
 <button class="primary-btn" style="margin-top:24px;" onclick="saveRecord()">この計算を履歴に保存</button>
+
+<div class="section">
+  <div class="section-label">報告用テキスト</div>
+  <div class="report-box" id="reportBox">さくら定時報告
+
+売り上げ　¥0
+人件費　　¥0
+人件費率　—%</div>
+  <button class="outline-btn" style="margin-top:10px;" onclick="copyReport()">📋 コピーする</button>
+  <div class="copy-toast" id="copyToast">コピーしました</div>
+</div>
 
 <div class="loading-overlay" id="loadingOverlay">
   <div class="loading-box"><div class="spinner"></div><div id="loadingText">処理中...</div></div>
@@ -295,9 +309,11 @@ function calc(){
   let total=0;
   for(const id in shiftData)total+=(shiftData[id].computed?shiftData[id].computed.total:0);
   document.getElementById('totalLaborVal').textContent='¥'+fmt(total);
+  let rateText = '—';
   if(es>0&&total>0){
     const rate=total/es*100;
-    document.getElementById('laborRatePct').textContent=rate.toFixed(1);
+    rateText = rate.toFixed(1);
+    document.getElementById('laborRatePct').textContent=rateText;
     const pct=Math.min(rate,60);
     const fill=document.getElementById('gaugeFill');
     fill.style.width=(pct/60*100)+'%';
@@ -306,6 +322,39 @@ function calc(){
     document.getElementById('laborRatePct').textContent='—';
     document.getElementById('gaugeFill').style.width='0%';
   }
+  updateReport(es, total, rateText);
+}
+
+function updateReport(sales, labor, rateText) {
+  const now = new Date();
+  const timeStr = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  const rateOut = rateText === '—' ? '—' : rateText + '%';
+  const text =
+    'さくら' + timeStr + '定時報告\n\n' +
+    '売り上げ　¥' + fmt(sales) + '\n' +
+    '人件費　　¥' + fmt(labor) + '\n' +
+    '人件費率　' + rateOut;
+  document.getElementById('reportBox').textContent = text;
+}
+
+async function copyReport() {
+  const text = document.getElementById('reportBox').textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch(e) {
+    // クリップボードAPIが使えない場合のフォールバック
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+  const toast = document.getElementById('copyToast');
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 1800);
 }
 
 async function saveRecord(){
