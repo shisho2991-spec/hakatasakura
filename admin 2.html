@@ -252,6 +252,25 @@ input[type="month"]:focus{border-color:var(--accent);}
   </div>
 </div>
 
+<div class="modal-overlay" id="authChoiceModal" onclick="if(event.target===this)cancelAuthChoice()">
+  <div class="modal">
+    <div class="modal-title">本人確認<button class="modal-close" onclick="cancelAuthChoice()">✕</button></div>
+    <p style="font-size:0.85rem;color:var(--muted);margin-bottom:18px;" id="authChoiceName"></p>
+    <button class="primary-btn" onclick="chooseFaceAuth()">📷 顔認証で確認する</button>
+    <button class="outline-btn" style="margin-top:10px;" onclick="choosePinAuth()">🔢 パスワードで確認する</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="pinVerifyModal" onclick="if(event.target===this)cancelPinVerify()">
+  <div class="modal">
+    <div class="modal-title">パスワード入力<button class="modal-close" onclick="cancelPinVerify()">✕</button></div>
+    <p style="font-size:0.85rem;color:var(--muted);margin-bottom:16px;" id="pinVerifyName"></p>
+    <input type="password" inputmode="numeric" maxlength="4" class="pin-input" id="pinVerifyInput" placeholder="••••" onkeydown="if(event.key==='Enter')submitPinVerify()">
+    <div class="err-text" id="pinVerifyErr"></div>
+    <button class="primary-btn" style="margin-top:12px;" onclick="submitPinVerify()">確認する</button>
+  </div>
+</div>
+
 <div class="face-overlay" id="faceOverlay">
   <div class="face-video-wrap">
     <video id="faceVideo" autoplay playsinline muted></video>
@@ -270,6 +289,7 @@ input[type="month"]:focus{border-color:var(--accent);}
 <script>
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbw2HcmMd4W5k2S28-fl1Du8nW15NhSjnG_9LtF4ai2LqBvlIX_KVCU69_snsXv3crSnng/exec';
 const ADMIN_PASS = '0321';
+const MASTER_KEY = '1111'; // このキーを入力すると誰の認証も突破できる
 
 let staffMaster = [];
 let openShifts = [];
@@ -394,8 +414,12 @@ function renderStaffGrid() {
 async function doPunch(name) {
   if (!name) return;
   const open = openShifts.find(o=>o.name===name);
-  const verified = await verifyFace(name);
-  if (!verified) return;
+  if (!open) {
+    // 出勤時のみ本人確認が必要（顔認証 or パスワード）
+    const verified = await verifyStaff(name);
+    if (!verified) return;
+  }
+  // 退勤時は認証なしでそのまま打刻
   showLoading(open ? '退勤打刻中...' : '出勤打刻中...');
   try {
     if (!open) {
@@ -747,12 +771,79 @@ function euclideanDist(a, b) {
   return Math.sqrt(sum);
 }
 
+// ===== 出勤時の本人確認（顔認証 or パスワード選択） =====
+let authResolve = null;
+let authTargetName = null;
+
+function verifyStaff(name) {
+  return new Promise((resolve) => {
+    authResolve = resolve;
+    authTargetName = name;
+    document.getElementById('authChoiceName').textContent = name + ' さんの出勤には本人確認が必要です';
+    document.getElementById('authChoiceModal').classList.add('open');
+  });
+}
+
+function cancelAuthChoice() {
+  document.getElementById('authChoiceModal').classList.remove('open');
+  if (authResolve) { authResolve(false); authResolve = null; }
+}
+
+async function chooseFaceAuth() {
+  document.getElementById('authChoiceModal').classList.remove('open');
+  const ok = await verifyFace(authTargetName);
+  if (authResolve) { authResolve(ok); authResolve = null; }
+}
+
+function choosePinAuth() {
+  document.getElementById('authChoiceModal').classList.remove('open');
+  document.getElementById('pinVerifyName').textContent = authTargetName + ' さんのパスワード（PIN）を入力してください';
+  document.getElementById('pinVerifyInput').value = '';
+  document.getElementById('pinVerifyErr').textContent = '';
+  document.getElementById('pinVerifyModal').classList.add('open');
+  setTimeout(()=>document.getElementById('pinVerifyInput').focus(), 200);
+}
+
+function cancelPinVerify() {
+  document.getElementById('pinVerifyModal').classList.remove('open');
+  if (authResolve) { authResolve(false); authResolve = null; }
+}
+
+async function submitPinVerify() {
+  const pin = document.getElementById('pinVerifyInput').value;
+  const err = document.getElementById('pinVerifyErr');
+  err.textContent = '';
+  if (!/^\d{4}$/.test(pin)) { err.textContent = '4桁の数字を入力してください'; return; }
+
+  // マスターキーなら誰でも即通過
+  if (pin === MASTER_KEY) {
+    document.getElementById('pinVerifyModal').classList.remove('open');
+    if (authResolve) { authResolve(true); authResolve = null; }
+    return;
+  }
+
+  showLoading('確認中...');
+  try {
+    const r = await gasPost({action:'login', name: authTargetName, pin});
+    hideLoading();
+    if (r.ok) {
+      document.getElementById('pinVerifyModal').classList.remove('open');
+      if (authResolve) { authResolve(true); authResolve = null; }
+    } else {
+      err.textContent = 'パスワードが違います';
+    }
+  } catch(e) {
+    hideLoading();
+    err.textContent = '通信エラーが発生しました';
+  }
+}
+
 // name の顔を確認する。一致すれば resolve(true)
 function verifyFace(name) {
   return new Promise(async (resolve) => {
     const known = faceData.find(f => f.name === name);
     if (!known) {
-      alert(name + ' さんは顔が未登録です。スタッフ管理から先に顔を登録してください。');
+      alert(name + ' さんは顔が未登録です。「パスワードで確認する」を選んでください。');
       resolve(false);
       return;
     }
