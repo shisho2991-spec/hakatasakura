@@ -127,7 +127,36 @@ select:focus,.pin-input:focus{border-color:var(--accent);}
 .modal{background:var(--bg);border-radius:20px 20px 0 0;padding:26px 24px;width:100%;max-height:88vh;overflow-y:auto;}
 .modal-title{font-size:1.1rem;font-weight:900;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;font-family:'Noto Sans JP',sans-serif;letter-spacing:-0.01em;}
 .modal-close{background:var(--surface2);border:none;color:var(--ink);font-size:0.85rem;cursor:pointer;width:32px;height:32px;border-radius:50%;}
+.summary-row{display:flex;justify-content:space-between;align-items:center;padding:16px 0;border-bottom:1px solid var(--border);}
+.summary-row:last-child{border-bottom:none;}
+.summary-name{font-weight:800;font-size:0.95rem;}
+.summary-meta{font-size:0.74rem;color:var(--muted);margin-top:3px;font-family:'DM Mono',monospace;}
+.summary-pay{font-family:'DM Mono',monospace;font-weight:700;font-size:1.05rem;color:var(--accent);}
+.summary-total{background:var(--accent-soft);border-radius:12px;padding:18px;margin-top:8px;display:flex;justify-content:space-between;align-items:baseline;}
+.summary-total .stl{font-size:0.68rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.12em;}
+.summary-total .stv{font-family:'DM Mono',monospace;font-size:1.5rem;font-weight:700;color:var(--accent);}
+input[type="month"]{width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:11px 12px;color:var(--ink);font-family:'DM Mono',monospace;font-size:0.95rem;outline:none;}
+input[type="month"]:focus{border-color:var(--accent);}
+
+/* 顔認証 */
+.face-overlay{position:fixed;inset:0;background:#000;z-index:300;display:none;flex-direction:column;align-items:center;justify-content:center;}
+.face-overlay.show{display:flex;}
+.face-video-wrap{position:relative;width:min(90vw,360px);aspect-ratio:3/4;border-radius:24px;overflow:hidden;background:#111;}
+.face-video-wrap video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);}
+.face-ring{position:absolute;inset:0;border:4px solid rgba(255,255,255,0.3);border-radius:24px;pointer-events:none;transition:border-color .2s;}
+.face-ring.ok{border-color:#16a34a;}
+.face-ring.ng{border-color:#e11d2e;}
+.face-status{color:#fff;font-size:0.95rem;font-weight:700;margin-top:20px;text-align:center;min-height:26px;}
+.face-sub{color:rgba(255,255,255,0.5);font-size:0.78rem;margin-top:8px;text-align:center;}
+.face-cancel{margin-top:28px;padding:13px 28px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.25);border-radius:99px;color:#fff;font-family:'Noto Sans JP',sans-serif;font-weight:700;cursor:pointer;}
+.face-capture-btn{margin-top:28px;padding:15px 32px;background:#fff;border:none;border-radius:99px;color:#111;font-family:'Noto Sans JP',sans-serif;font-weight:800;cursor:pointer;font-size:0.95rem;}
+.face-reg-row{display:flex;align-items:center;justify-content:space-between;margin-top:10px;}
+.face-reg-status{font-size:0.72rem;font-weight:700;}
+.face-reg-status.on{color:var(--green);}
+.face-reg-status.off{color:var(--muted2);}
+.face-reg-btn{background:none;border:1px solid var(--border);border-radius:99px;padding:8px 14px;font-size:0.75rem;color:var(--ink);font-family:'Noto Sans JP',sans-serif;cursor:pointer;font-weight:700;}
 </style>
+<script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 </head>
 <body>
 
@@ -183,9 +212,20 @@ select:focus,.pin-input:focus{border-color:var(--accent);}
   </div>
 </div>
 
+<div class="tab-content" id="tab-summary">
+  <div class="section">
+    <div class="section-label">スタッフ別 勤務集計</div>
+    <input type="month" id="summaryMonth" style="margin-bottom:12px;">
+    <button class="outline-btn" onclick="loadSummary()">集計する</button>
+    <button class="outline-btn" style="margin-top:8px;" onclick="exportSummaryCSV()">CSVで書き出す</button>
+    <div id="summaryList" style="margin-top:20px;"><div class="no-data">月を選んで「集計する」を押してください</div></div>
+  </div>
+</div>
+
 <div class="tabbar">
   <button class="active" id="tb-punch" onclick="switchTab('punch')"><span class="ico">⏱</span>打刻</button>
   <button id="tb-staff" onclick="switchTab('staff')"><span class="ico">👥</span>スタッフ</button>
+  <button id="tb-summary" onclick="switchTab('summary')"><span class="ico">📊</span>集計</button>
   <button id="tb-history" onclick="switchTab('history')"><span class="ico">📋</span>履歴</button>
 </div>
 
@@ -203,9 +243,24 @@ select:focus,.pin-input:focus{border-color:var(--accent);}
       <div class="input-wrap"><input type="number" id="staffEditWage" placeholder="1000"><span class="unit">円</span></div>
     </div>
     <div class="err-text" id="staffEditErr"></div>
+    <div class="face-reg-row" id="faceRegRow" style="display:none;">
+      <span class="face-reg-status" id="faceRegStatus">顔未登録</span>
+      <button class="face-reg-btn" onclick="openFaceRegister()">📷 顔を登録</button>
+    </div>
     <button class="primary-btn" style="margin-top:10px;" onclick="saveStaffEdit()" id="staffEditSaveBtn">追加する</button>
     <button class="text-btn" id="staffEditDeleteBtn" style="color:var(--red);text-decoration:none;" onclick="deleteStaffEdit()">このスタッフを削除する</button>
   </div>
+</div>
+
+<div class="face-overlay" id="faceOverlay">
+  <div class="face-video-wrap">
+    <video id="faceVideo" autoplay playsinline muted></video>
+    <div class="face-ring" id="faceRing"></div>
+  </div>
+  <div class="face-status" id="faceStatus">カメラを準備中...</div>
+  <div class="face-sub" id="faceSub"></div>
+  <button class="face-capture-btn" id="faceCaptureBtn" style="display:none;" onclick="captureFaceForRegister()">この顔で登録する</button>
+  <button class="face-cancel" onclick="closeFaceOverlay()">キャンセル</button>
 </div>
 
 <div class="loading-overlay" id="loadingOverlay">
@@ -233,6 +288,7 @@ setInterval(tickClock, 1000);
 (function(){
   const d = new Date();
   document.getElementById('fixDate').value = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  document.getElementById('summaryMonth').value = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
 })();
 
 function setSyncStatus(state, text) {
@@ -255,16 +311,35 @@ function gateLogin() {
   boot();
 }
 
+let faceData = [];
+let faceModelsLoaded = false;
+
 async function boot() {
   setSyncStatus('loading','接続中...');
   try {
     const data = await gasGet('action=getStaff');
     staffMaster = data.staff || [];
+    const fd = await gasGet('action=getFaces');
+    faceData = fd.faces || [];
     setSyncStatus('ok','同期済み');
   } catch(e) {
     setSyncStatus('error','接続エラー');
   }
   refreshOpenShifts();
+  loadFaceModels();
+}
+
+async function loadFaceModels() {
+  if (faceModelsLoaded) return;
+  const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
+  try {
+    await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+    await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+    await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+    faceModelsLoaded = true;
+  } catch(e) {
+    console.error('顔認証モデルの読み込みに失敗', e);
+  }
 }
 
 if (loggedIn) {
@@ -276,7 +351,7 @@ if (loggedIn) {
 }
 
 function switchTab(name) {
-  ['punch','staff','history'].forEach(t=>{
+  ['punch','staff','summary','history'].forEach(t=>{
     document.getElementById('tab-'+t).classList.toggle('active', t===name);
     document.getElementById('tb-'+t).classList.toggle('active', t===name);
   });
@@ -319,12 +394,8 @@ function renderStaffGrid() {
 async function doPunch(name) {
   if (!name) return;
   const open = openShifts.find(o=>o.name===name);
-  const now = new Date();
-  const nowStr = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
-  const confirmMsg = open
-    ? name + ' さんを ' + nowStr + ' に退勤打刻します。よろしいですか？'
-    : name + ' さんを ' + nowStr + ' に出勤打刻します。よろしいですか？';
-  if (!confirm(confirmMsg)) return;
+  const verified = await verifyFace(name);
+  if (!verified) return;
   showLoading(open ? '退勤打刻中...' : '出勤打刻中...');
   try {
     if (!open) {
@@ -362,6 +433,71 @@ function diffMin(a, b) {
   const s = toMin(a), e0 = toMin(b);
   let e = e0 <= s ? e0 + 1440 : e0;
   return e - s;
+}
+function calcWage(wage,startStr,endStr){
+  const s=toMin(startStr),e0=toMin(endStr);
+  if(s===null||e0===null||!wage)return{total:0,hours:0};
+  let e=e0<=s?e0+1440:e0;
+  const totalMins=e-s,ns=22*60,ne=29*60;
+  const nightMins=Math.max(0,Math.min(e,ne)-Math.max(s,ns));
+  const normalMins=totalMins-nightMins;
+  return{total:normalMins/60*wage+nightMins/60*wage*1.25,hours:totalMins/60};
+}
+
+let lastSummaryData = [];
+async function loadSummary() {
+  const month = document.getElementById('summaryMonth').value;
+  if (!month) { alert('月を選択してください'); return; }
+  const el = document.getElementById('summaryList');
+  el.innerHTML = '<div class="no-data">集計中...</div>';
+  showLoading('集計中...');
+  try {
+    const r = await gasGet('action=monthTimeclock&month=' + month);
+    hideLoading();
+    const recs = (r.records || []).filter(x => x.out);
+    const byStaff = {};
+    recs.forEach(rec => {
+      const staff = staffMaster.find(s => s.name === rec.name);
+      const wage = staff ? staff.wage : 0;
+      const p = calcWage(wage, rec.in, rec.out);
+      if (!byStaff[rec.name]) byStaff[rec.name] = { shifts: 0, hours: 0, pay: 0 };
+      byStaff[rec.name].shifts++;
+      byStaff[rec.name].hours += p.hours;
+      byStaff[rec.name].pay += p.total;
+    });
+    const list = Object.keys(byStaff).map(name => ({ name, ...byStaff[name] })).sort((a,b) => b.pay - a.pay);
+    lastSummaryData = list;
+    if (list.length === 0) {
+      el.innerHTML = '<div class="no-data">この月のデータはありません</div>';
+      return;
+    }
+    let grandTotal = 0;
+    let html = list.map(s => {
+      grandTotal += s.pay;
+      return '<div class="summary-row"><div><div class="summary-name">'+s.name+'</div><div class="summary-meta">'+s.shifts+'回勤務・'+s.hours.toFixed(1)+'h</div></div><div class="summary-pay">¥'+fmt(s.pay)+'</div></div>';
+    }).join('');
+    html += '<div class="summary-total"><span class="stl">合計人件費</span><span class="stv">¥'+fmt(grandTotal)+'</span></div>';
+    el.innerHTML = html;
+  } catch(e) {
+    hideLoading();
+    el.innerHTML = '<div class="no-data">集計に失敗しました</div>';
+  }
+}
+
+function exportSummaryCSV() {
+  if (lastSummaryData.length === 0) { alert('先に集計してください'); return; }
+  const month = document.getElementById('summaryMonth').value;
+  let csv = '\uFEFF名前,勤務回数,合計時間(h),合計給与\n';
+  lastSummaryData.forEach(s => {
+    csv += [s.name, s.shifts, s.hours.toFixed(2), Math.round(s.pay)].join(',') + '\n';
+  });
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '勤務集計_' + month + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ===== 勤怠修正 =====
@@ -460,12 +596,14 @@ function openStaffEdit(i) {
   editingIndex = i;
   const err = document.getElementById('staffEditErr');
   err.textContent = '';
+  const faceRow = document.getElementById('faceRegRow');
   if (i === -1) {
     document.getElementById('staffEditTitle').textContent = 'スタッフを追加';
     document.getElementById('staffEditName').value = '';
     document.getElementById('staffEditWage').value = '';
     document.getElementById('staffEditSaveBtn').textContent = '追加する';
     document.getElementById('staffEditDeleteBtn').style.display = 'none';
+    faceRow.style.display = 'none';
   } else {
     const s = staffMaster[i];
     document.getElementById('staffEditTitle').textContent = s.name;
@@ -473,8 +611,17 @@ function openStaffEdit(i) {
     document.getElementById('staffEditWage').value = s.wage;
     document.getElementById('staffEditSaveBtn').textContent = '保存する';
     document.getElementById('staffEditDeleteBtn').style.display = 'block';
+    faceRow.style.display = 'flex';
+    updateFaceRegStatus(s.name);
   }
   document.getElementById('staffEditModal').classList.add('open');
+}
+
+function updateFaceRegStatus(name) {
+  const has = faceData.find(f => f.name === name);
+  const el = document.getElementById('faceRegStatus');
+  el.textContent = has ? '✓ 顔登録済み' : '顔未登録';
+  el.className = 'face-reg-status ' + (has ? 'on' : 'off');
 }
 
 function closeStaffEdit() {
@@ -524,6 +671,136 @@ async function persistStaff() {
     hideLoading();
     alert('通信エラーが発生しました');
   }
+}
+
+// ===== 顔認証 =====
+let faceStream = null;
+let faceMode = null; // 'register' | 'verify'
+let faceTargetName = null;
+let faceDetectTimer = null;
+let faceVerifyResolve = null;
+
+async function startCamera() {
+  const video = document.getElementById('faceVideo');
+  faceStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+  video.srcObject = faceStream;
+  await new Promise(res => { video.onloadedmetadata = res; });
+}
+
+function stopCamera() {
+  if (faceStream) { faceStream.getTracks().forEach(t => t.stop()); faceStream = null; }
+  if (faceDetectTimer) { clearInterval(faceDetectTimer); faceDetectTimer = null; }
+}
+
+function closeFaceOverlay() {
+  stopCamera();
+  document.getElementById('faceOverlay').classList.remove('show');
+  document.getElementById('faceCaptureBtn').style.display = 'none';
+  document.getElementById('faceRing').className = 'face-ring';
+  if (faceVerifyResolve) { faceVerifyResolve(false); faceVerifyResolve = null; }
+}
+
+async function openFaceRegister() {
+  if (editingIndex === -1) return;
+  faceMode = 'register';
+  faceTargetName = staffMaster[editingIndex].name;
+  document.getElementById('faceStatus').textContent = 'カメラを準備中...';
+  document.getElementById('faceSub').textContent = faceTargetName + ' さんの顔を登録します';
+  document.getElementById('faceOverlay').classList.add('show');
+  await loadFaceModels();
+  try {
+    await startCamera();
+    document.getElementById('faceStatus').textContent = '正面を向いてください';
+    document.getElementById('faceCaptureBtn').style.display = 'inline-block';
+  } catch(e) {
+    document.getElementById('faceStatus').textContent = 'カメラを起動できませんでした';
+  }
+}
+
+async function captureFaceForRegister() {
+  const video = document.getElementById('faceVideo');
+  document.getElementById('faceStatus').textContent = '検出中...';
+  const det = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+  if (!det) {
+    document.getElementById('faceStatus').textContent = '顔が検出できませんでした。もう一度お試しください';
+    return;
+  }
+  const descriptor = Array.from(det.descriptor);
+  showLoading('顔を登録中...');
+  try {
+    await gasPost({ action:'saveFace', adminPass:ADMIN_PASS, name: faceTargetName, descriptor });
+    const existing = faceData.find(f => f.name === faceTargetName);
+    if (existing) existing.descriptor = descriptor;
+    else faceData.push({ name: faceTargetName, descriptor });
+    hideLoading();
+    closeFaceOverlay();
+    updateFaceRegStatus(faceTargetName);
+  } catch(e) {
+    hideLoading();
+    document.getElementById('faceStatus').textContent = '保存に失敗しました';
+  }
+}
+
+function euclideanDist(a, b) {
+  let sum = 0;
+  for (let i = 0; i < a.length; i++) sum += (a[i]-b[i]) * (a[i]-b[i]);
+  return Math.sqrt(sum);
+}
+
+// name の顔を確認する。一致すれば resolve(true)
+function verifyFace(name) {
+  return new Promise(async (resolve) => {
+    const known = faceData.find(f => f.name === name);
+    if (!known) {
+      alert(name + ' さんは顔が未登録です。スタッフ管理から先に顔を登録してください。');
+      resolve(false);
+      return;
+    }
+    faceMode = 'verify';
+    faceTargetName = name;
+    faceVerifyResolve = resolve;
+    document.getElementById('faceCaptureBtn').style.display = 'none';
+    document.getElementById('faceStatus').textContent = 'カメラを準備中...';
+    document.getElementById('faceSub').textContent = name + ' さんの本人確認';
+    document.getElementById('faceOverlay').classList.add('show');
+    await loadFaceModels();
+    try {
+      await startCamera();
+    } catch(e) {
+      document.getElementById('faceStatus').textContent = 'カメラを起動できませんでした';
+      return;
+    }
+    document.getElementById('faceStatus').textContent = '顔を枠に合わせてください';
+    let matchStreak = 0;
+    faceDetectTimer = setInterval(async () => {
+      const video = document.getElementById('faceVideo');
+      const det = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+      const ring = document.getElementById('faceRing');
+      if (!det) {
+        ring.className = 'face-ring';
+        document.getElementById('faceStatus').textContent = '顔を枠に合わせてください';
+        matchStreak = 0;
+        return;
+      }
+      const dist = euclideanDist(Array.from(det.descriptor), known.descriptor);
+      if (dist < 0.55) {
+        matchStreak++;
+        ring.className = 'face-ring ok';
+        document.getElementById('faceStatus').textContent = '✓ 本人確認できました';
+        if (matchStreak >= 2) {
+          clearInterval(faceDetectTimer); faceDetectTimer = null;
+          stopCamera();
+          document.getElementById('faceOverlay').classList.remove('show');
+          faceVerifyResolve = null;
+          resolve(true);
+        }
+      } else {
+        matchStreak = 0;
+        ring.className = 'face-ring ng';
+        document.getElementById('faceStatus').textContent = '本人と一致しません';
+      }
+    }, 600);
+  });
 }
 
 // ===== 履歴 =====
